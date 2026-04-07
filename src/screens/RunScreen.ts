@@ -2,7 +2,7 @@ import type { Screen } from './Screen';
 import type { AppController } from '../state/AppController';
 import {
   CANVAS_W, CANVAS_H, CELL_SIZE, GRID_COLS, GRID_ROWS,
-  COLOR_BG, COLOR_TEXT, COLOR_ACCENT, COLOR_TEXT_DIM,
+  COLOR_BG, COLOR_ACCENT, COLOR_TEXT_DIM,
   COLOR_UI_BG, DEBUG_STEP_MS, RUN_STEP_MS,
 } from '../constants';
 import { drawButton, hitTest, type ButtonRect } from '../ui/button';
@@ -14,8 +14,9 @@ import { dijkstra } from '../algorithms/dijkstra';
 import type { AlgorithmName, AlgorithmStep, Position } from '../types';
 
 const TOOLBAR_H = 60;
-const GRID_OFFSET_X = (CANVAS_W - GRID_COLS * CELL_SIZE) / 2;
-const GRID_OFFSET_Y = TOOLBAR_H + (CANVAS_H - TOOLBAR_H - GRID_ROWS * CELL_SIZE) / 2;
+// Center the grid horizontally and vertically in the available space
+const GRID_OFFSET_X = Math.floor((CANVAS_W - GRID_COLS * CELL_SIZE) / 2);
+const GRID_OFFSET_Y = TOOLBAR_H + Math.floor((CANVAS_H - TOOLBAR_H - GRID_ROWS * CELL_SIZE) / 2);
 
 type RunState = 'idle' | 'running' | 'done_found' | 'done_not_found';
 
@@ -77,7 +78,6 @@ export class RunScreen implements Screen {
     }
 
     const algo = this.algorithm === 'astar' ? astar : dijkstra;
-    this.generator = algo(this.grid, this.grid.playerStart, this.grid.exitPos);
     this.currentStep = null;
     this.state = 'running';
     this.paused = false;
@@ -87,16 +87,38 @@ export class RunScreen implements Screen {
     this.playerPos = this.grid.playerStart ? { ...this.grid.playerStart } : null;
     this.lastStepTime = performance.now();
     this.lastMoveTime = performance.now();
+
+    if (this.debugMode) {
+      // Debug: keep generator alive for step-by-step rendering
+      this.generator = algo(this.grid, this.grid.playerStart, this.grid.exitPos);
+    } else {
+      // Normal: run algorithm to completion immediately, store only the final step
+      this.generator = null;
+      const gen = algo(this.grid, this.grid.playerStart, this.grid.exitPos);
+      let last: AlgorithmStep | null = null;
+      let count = 0;
+      for (const step of gen) {
+        last = step;
+        count++;
+        if (step.done) break;
+      }
+      this.totalSteps = count;
+      this.currentStep = last;
+      if (last?.found) {
+        this.state = 'done_found';
+      } else {
+        this.state = 'done_not_found';
+      }
+    }
   }
 
   render(dt: number): void {
     const now = performance.now();
     const { ctx } = this;
 
-    // Advance algorithm
-    if (this.state === 'running' && !this.paused && this.generator) {
-      const interval = this.debugMode ? DEBUG_STEP_MS : 4;
-      if (now - this.lastStepTime >= interval) {
+    // Debug mode: advance generator one step per interval
+    if (this.debugMode && this.state === 'running' && !this.paused && this.generator) {
+      if (now - this.lastStepTime >= DEBUG_STEP_MS) {
         this.lastStepTime = now;
         const result = this.generator.next();
         if (!result.done) {
@@ -114,7 +136,7 @@ export class RunScreen implements Screen {
       }
     }
 
-    // Animate player along path after algorithm finishes
+    // Animate player along path once algorithm is done
     if (this.state === 'done_found' && this.currentStep?.path) {
       const path = this.currentStep.path;
       if (this.pathIndex < path.length && now - this.lastMoveTime >= RUN_STEP_MS) {
@@ -124,12 +146,12 @@ export class RunScreen implements Screen {
       }
     }
 
-    // Draw
+    // Draw — only pass step overlay in debug mode
     ctx.fillStyle = COLOR_BG;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     this.renderer.draw(this.grid, {
-      step: this.currentStep ?? undefined,
+      step: this.debugMode ? (this.currentStep ?? undefined) : undefined,
       playerPos: this.playerPos ?? undefined,
     });
 

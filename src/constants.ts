@@ -3,8 +3,20 @@ export const CELL_SIZE = 20;
 export const GRID_COLS = 40;
 export const GRID_ROWS = 30;
 
-export const CANVAS_W = CELL_SIZE * GRID_COLS; // 800
-export const CANVAS_H = CELL_SIZE * GRID_ROWS; // 600
+// Padding around the grid
+export const GRID_PADDING = 12;
+
+// Side toolbar width (tile picker in editor)
+export const SIDE_TOOLBAR_W = 64;
+
+const GRID_W = CELL_SIZE * GRID_COLS; // 800
+const GRID_H = CELL_SIZE * GRID_ROWS; // 600
+
+// Canvas dimensions
+// Width: side toolbar + padding + grid + padding
+// Height: top toolbar + padding + grid + padding
+export const CANVAS_W = SIDE_TOOLBAR_W + GRID_PADDING + GRID_W + GRID_PADDING; // 888
+export const CANVAS_H = GRID_H + GRID_PADDING * 2 + 88; // top toolbar (88) + grid + padding
 
 // Colors
 export const COLOR_WALL    = '#2c3e50';
