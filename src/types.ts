@@ -1,4 +1,4 @@
-export type CellType = 'wall' | 'floor' | 'player' | 'exit' | 'mud' | 'monster' | 'potion';
+export type CellType = 'wall' | 'floor' | 'player' | 'exit' | 'mud' | 'monster' | 'potion' | 'treasure';
 
 export interface Cell {
   type: CellType;
@@ -23,6 +23,7 @@ export interface MazeData {
   // Monster spawn positions and movement axes (saved separately so the cell
   // under each monster is stored as 'monster' in cells[][])
   monsterSpawns?: { pos: Position; axis: 'h' | 'v'; amplitude: number }[];
+  treasures?: Position[];  // List of treasure positions
 }
 
 export type AlgorithmName = 'astar' | 'dijkstra';

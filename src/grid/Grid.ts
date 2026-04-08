@@ -16,6 +16,7 @@ export class Grid {
   exitPos: Position | null = null;
   playerHitpoints = 3;
   monsterSpawns: MonsterSpawn[] = [];
+  treasures: Position[] = [];
 
   constructor(cols = GRID_COLS, rows = GRID_ROWS) {
     this.cols = cols;
@@ -42,6 +43,12 @@ export class Grid {
       );
     }
 
+     // If we're overwriting a treasure cell, remove it from the list
+     if (this.cells[row]?.[col] === 'treasure') {
+       this.treasures = this.treasures.filter(
+         t => !(t.col === col && t.row === row)
+       );
+     }
     // Clear previous player/exit if reassigning
     if (type === 'player') {
       if (this.playerStart) {
@@ -61,6 +68,11 @@ export class Grid {
       this.monsterSpawns.push({ pos: { col, row }, axis, amplitude: 3 });
       if (this.playerStart?.col === col && this.playerStart?.row === row) this.playerStart = null;
       if (this.exitPos?.col === col && this.exitPos?.row === row) this.exitPos = null;
+     } else if (type === 'treasure') {
+       // Add treasure position
+       this.treasures.push({ col, row });
+       if (this.playerStart?.col === col && this.playerStart?.row === row) this.playerStart = null;
+       if (this.exitPos?.col === col && this.exitPos?.row === row) this.exitPos = null;
     } else {
       // Clearing a special cell
       if (this.playerStart?.col === col && this.playerStart?.row === row) {
@@ -83,12 +95,13 @@ export class Grid {
     if (type !== 'player') this.playerStart = null;
     if (type !== 'exit') this.exitPos = null;
     if (type !== 'monster') this.monsterSpawns = [];
+    if (type !== 'treasure') this.treasures = [];
   }
 
   isWalkable(col: number, row: number): boolean {
     const cell = this.getCell(col, row);
     return cell === 'floor' || cell === 'player' || cell === 'exit'
-        || cell === 'mud'   || cell === 'monster' || cell === 'potion';
+        || cell === 'mud'   || cell === 'monster' || cell === 'potion' || cell === 'treasure';
   }
 
   /** Cost to enter a cell (used by pathfinding algorithms). */
@@ -134,6 +147,7 @@ export class Grid {
         axis: m.axis,
         amplitude: m.amplitude,
       })),
+      treasures: this.treasures.map(t => ({ ...t })),
     };
   }
 
@@ -148,6 +162,7 @@ export class Grid {
       axis: m.axis,
       amplitude: m.amplitude,
     }));
+    grid.treasures = (data.treasures ?? []).map(t => ({ ...t }));
     return grid;
   }
 
@@ -162,6 +177,7 @@ export class Grid {
     g.exitPos = this.exitPos ? { ...this.exitPos } : null;
     g.playerHitpoints = this.playerHitpoints;
     g.monsterSpawns = this.monsterSpawns.map(m => ({ pos: { ...m.pos }, axis: m.axis, amplitude: m.amplitude }));
+    g.treasures = this.treasures.map(t => ({ ...t }));
     return g;
   }
 }

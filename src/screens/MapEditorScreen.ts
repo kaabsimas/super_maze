@@ -20,7 +20,7 @@ const ROW1_Y = 8;
 const GRID_OFFSET_X = SIDE_TOOLBAR_W + GRID_PADDING;
 const GRID_OFFSET_Y = TOOLBAR_H + GRID_PADDING;
 
-type Tool = 'wall' | 'player' | 'exit' | 'mud' | 'monster' | 'potion' | 'erase';
+type Tool = 'wall' | 'player' | 'exit' | 'mud' | 'monster' | 'potion' | 'treasure' | 'erase';
 
 export class MapEditorScreen implements Screen {
   private ctx: CanvasRenderingContext2D;
@@ -155,6 +155,7 @@ export class MapEditorScreen implements Screen {
       { tool: 'mud',     icon: '💧', color: COLOR_MUD,     label: 'lama'    },
       { tool: 'monster', icon: '👾', color: COLOR_MONSTER, label: 'monstro' },
       { tool: 'potion',  icon: '🧪', color: COLOR_POTION,  label: 'poção'   },
+      { tool: 'treasure',icon: '💎', color: '#f39c12',     label: 'tesouro' },
       { tool: 'erase',   icon: '✕',  color: '#e74c3c',     label: 'apagar'  },
     ];
 
@@ -304,7 +305,7 @@ export class MapEditorScreen implements Screen {
       const btnSize = SIDE_TOOLBAR_W - PAD * 2;
       const startY = TOOLBAR_H + 16;
       const spacing = btnSize + 10;
-      const tools: Tool[] = ['wall', 'player', 'exit', 'mud', 'monster', 'potion', 'erase'];
+      const tools: Tool[] = ['wall', 'player', 'exit', 'mud', 'monster', 'potion', 'treasure', 'erase'];
       for (let i = 0; i < tools.length; i++) {
         const bx = PAD, by = startY + i * spacing;
         if (x >= bx && x <= bx + btnSize && y >= by && y <= by + btnSize) {

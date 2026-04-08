@@ -41,6 +41,9 @@ export class RunScreen implements Screen {
   private totalSteps = 0;
   private stepCount = 0;
 
+  // Treasure pathfinding - store calculated path segments
+  private pathSegments: Position[][] = [];
+
   // Monsters
   private monsters: MonsterState[] = [];
 
@@ -98,6 +101,7 @@ export class RunScreen implements Screen {
     this.pathIndex = 0;
     this.totalSteps = 0;
     this.stepCount = 0;
+    this.pathSegments = [];
     this.playerPos = this.grid.playerStart ? { ...this.grid.playerStart } : null;
     this.lastStepTime = performance.now();
     this.lastMoveTime = performance.now();
@@ -109,28 +113,194 @@ export class RunScreen implements Screen {
       row: s.pos.row,
     }));
 
+    // Check if there are treasures to collect
+    const treasures = this.grid.treasures ?? [];
+    console.log('🎯 START: treasures.length =', treasures.length);
+    if (treasures.length > 0) {
+      // Build path segments for each treasure
+      console.log('🎯 Building treasure path segments...');
+      this.buildTreasurePathSegments(algo);
+      console.log('🎯 After buildTreasurePathSegments: pathSegments.length =', this.pathSegments.length);
+    }
+
     if (this.debugMode) {
-      // Debug: keep generator alive for step-by-step rendering
-      this.generator = algo(this.grid, this.grid.playerStart, this.grid.exitPos);
-    } else {
-      // Normal: run algorithm to completion immediately, store only the final step
-      this.generator = null;
-      const gen = algo(this.grid, this.grid.playerStart, this.grid.exitPos);
-      let last: AlgorithmStep | null = null;
-      let count = 0;
-      for (const step of gen) {
-        last = step;
-        count++;
-        if (step.done) break;
+      // Debug: Create a generator that shows each treasure segment, then final path
+      if (treasures.length > 0) {
+        // For treasures: show step-by-step calculation of each segment
+        this.generator = this.createDebugGeneratorForTreasures(algo);
+      } else {
+        // No treasures, use normal path from start to exit
+        this.generator = algo(this.grid, this.grid.playerStart, this.grid.exitPos);
       }
-      this.totalSteps = count;
-      this.currentStep = last;
-      if (last?.found) {
+    } else {
+      // Normal: run algorithm to completion immediately, store only the final path
+      this.generator = null;
+      
+      if (this.pathSegments.length > 0) {
+        // Use treasure path segments
+        this.combineTreasureSegments();
+      } else {
+        // Direct path from start to exit
+        const gen = algo(this.grid, this.grid.playerStart, this.grid.exitPos);
+        let last: AlgorithmStep | null = null;
+        let count = 0;
+        for (const step of gen) {
+          last = step;
+          count++;
+          if (step.done) break;
+        }
+        this.totalSteps = count;
+        this.currentStep = last;
+      }
+
+      if (this.currentStep?.found) {
         this.state = 'done_found';
       } else {
         this.state = 'done_not_found';
       }
     }
+  }
+
+  private buildTreasurePathSegments(algo: typeof astar | typeof dijkstra): void {
+    const treasures = this.grid.treasures!;
+    console.log('📍 buildTreasurePathSegments: treasures =', treasures);
+    let currentPos = this.grid.playerStart!;
+    const collected = new Set<string>();
+
+    // Process treasures in order of closest proximity
+    while (collected.size < treasures.length) {
+      let nearestTreasure: Position | null = null;
+      let minDist = Infinity;
+
+      // Find closest uncollected treasure
+      for (const treasure of treasures) {
+        const key = `${treasure.col},${treasure.row}`;
+        if (collected.has(key)) continue;
+        const dist = Math.abs(currentPos.col - treasure.col) + Math.abs(currentPos.row - treasure.row);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestTreasure = treasure;
+        }
+      }
+
+      if (!nearestTreasure) break;
+
+      console.log(`📍 Seeking treasure at (${nearestTreasure.col},${nearestTreasure.row}) from (${currentPos.col},${currentPos.row})`);
+
+      // Try to find path to this treasure
+      const gen = algo(this.grid, currentPos, nearestTreasure);
+      let lastStep: AlgorithmStep | null = null;
+      for (const step of gen) {
+        lastStep = step;
+        if (step.done) break;
+      }
+
+      // Record this segment
+      if (lastStep?.found && lastStep?.path) {
+        console.log(`📍 Found path to treasure: ${lastStep.path.length} steps`);
+        this.pathSegments.push(lastStep.path);
+        currentPos = nearestTreasure;
+      } else {
+        console.log(`📍 NO PATH to treasure at (${nearestTreasure.col},${nearestTreasure.row})`);
+      }
+      collected.add(`${nearestTreasure.col},${nearestTreasure.row}`);
+    }
+
+    // Add final segment to exit
+    console.log(`📍 Seeking exit at (${this.grid.exitPos!.col},${this.grid.exitPos!.row}) from (${currentPos.col},${currentPos.row})`);
+    const gen = algo(this.grid, currentPos, this.grid.exitPos!);
+    let lastStep: AlgorithmStep | null = null;
+    for (const step of gen) {
+      lastStep = step;
+      if (step.done) break;
+    }
+    if (lastStep?.found && lastStep?.path) {
+      console.log(`📍 Found path to exit: ${lastStep.path.length} steps`);
+      this.pathSegments.push(lastStep.path);
+    } else {
+      console.log(`📍 NO PATH to exit`);
+    }
+    console.log('📍 Total segments:', this.pathSegments.length);
+  }
+
+  private *createDebugGeneratorForTreasures(algo: typeof astar | typeof dijkstra): Generator<AlgorithmStep> {
+    const treasures = this.grid.treasures!;
+    let currentPos = this.grid.playerStart!;
+    const collected = new Set<string>();
+
+    // Show each treasure segment calculation
+    while (collected.size < treasures.length) {
+      let nearestTreasure: Position | null = null;
+      let minDist = Infinity;
+
+      // Find closest uncollected treasure
+      for (const treasure of treasures) {
+        const key = `${treasure.col},${treasure.row}`;
+        if (collected.has(key)) continue;
+        const dist = Math.abs(currentPos.col - treasure.col) + Math.abs(currentPos.row - treasure.row);
+        if (dist < minDist) {
+          minDist = dist;
+          nearestTreasure = treasure;
+        }
+      }
+
+      if (!nearestTreasure) break;
+
+      // Calculate path to this treasure and yield each step
+      const gen = algo(this.grid, currentPos, nearestTreasure);
+      for (const step of gen) {
+        yield step;
+      }
+
+      // Update current position
+      currentPos = nearestTreasure;
+      collected.add(`${nearestTreasure.col},${nearestTreasure.row}`);
+    }
+
+    // Finally, show path to exit
+    const gen = algo(this.grid, currentPos, this.grid.exitPos!);
+    for (const step of gen) {
+      yield step;
+    }
+  }
+
+  private combineTreasureSegments(): void {
+    if (this.pathSegments.length === 0) {
+      this.currentStep = {
+        visited: new Set(),
+        frontier: new Set(),
+        current: null,
+        path: null,
+        pathHpLost: 0,
+        done: true,
+        found: false,
+      };
+      return;
+    }
+
+    // Combine all segments into one path
+    let finalPath: Position[] = this.pathSegments[0]!.slice();
+    for (let i = 1; i < this.pathSegments.length; i++) {
+      const segment = this.pathSegments[i]!;
+      // Skip first element (it's the same as last element of previous segment)
+      finalPath = finalPath.concat(segment.slice(1));
+    }
+
+    // Calculate total HP lost
+    let pathHpLost = 0;
+    for (let i = 1; i < finalPath.length; i++) {
+      pathHpLost += this.grid.cellHpCost(finalPath[i]!.col, finalPath[i]!.row);
+    }
+
+    this.currentStep = {
+      visited: new Set(),
+      frontier: new Set(),
+      current: null,
+      path: finalPath,
+      pathHpLost,
+      done: true,
+      found: finalPath.length > 0,
+    };
   }
 
   render(dt: number): void {
@@ -173,6 +343,14 @@ export class RunScreen implements Screen {
       const cell = this.grid.getCell(this.playerPos.col, this.playerPos.row);
       if (cell === 'potion') {
         this.currentHp = Math.min(this.currentHp + 1, this.maxHp);
+        this.grid.setCell(this.playerPos.col, this.playerPos.row, 'floor');
+      }
+
+      // Check for treasure: remove it when collected
+      if (cell === 'treasure') {
+        this.grid.treasures = this.grid.treasures!.filter(
+          t => !(t.col === this.playerPos!.col && t.row === this.playerPos!.row)
+        );
         this.grid.setCell(this.playerPos.col, this.playerPos.row, 'floor');
       }
 

@@ -52,6 +52,8 @@ export class GridRenderer {
           color = COLOR_MUD;
         } else if (cell === 'potion') {
           color = COLOR_POTION;
+        } else if (cell === 'treasure') {
+          color = '#f39c12';
         } else if (cell === 'monster') {
           // Spawn cell shown as floor (monster drawn separately)
           color = COLOR_FLOOR;
@@ -104,6 +106,15 @@ export class GridRenderer {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('🧪', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
+        }
+
+        // Treasure icon
+        if (cell === 'treasure') {
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `${CELL_SIZE * 0.65}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('💎', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
         }
 
         // Monster spawn indicator (editor view — no live monsters passed)
