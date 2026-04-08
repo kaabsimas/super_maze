@@ -11,14 +11,14 @@ import { GridRenderer } from '../grid/GridRenderer';
 import { getMap } from '../storage';
 import { astar } from '../algorithms/astar';
 import { dijkstra } from '../algorithms/dijkstra';
-import type { AlgorithmName, AlgorithmStep, Position } from '../types';
+import type { AlgorithmName, AlgorithmStep, MonsterState, Position } from '../types';
 
 const TOOLBAR_H = 60;
 // Center the grid horizontally and vertically in the available space
 const GRID_OFFSET_X = Math.floor((CANVAS_W - GRID_COLS * CELL_SIZE) / 2);
 const GRID_OFFSET_Y = TOOLBAR_H + Math.floor((CANVAS_H - TOOLBAR_H - GRID_ROWS * CELL_SIZE) / 2);
 
-type RunState = 'idle' | 'running' | 'done_found' | 'done_not_found';
+type RunState = 'idle' | 'running' | 'done_found' | 'done_not_found' | 'done_caught';
 
 export class RunScreen implements Screen {
   private ctx: CanvasRenderingContext2D;
@@ -41,6 +41,13 @@ export class RunScreen implements Screen {
   private totalSteps = 0;
   private stepCount = 0;
 
+  // Monsters
+  private monsters: MonsterState[] = [];
+
+  // Player HP
+  private maxHp = 3;
+  private currentHp = 3;
+
   private backBtn: ButtonRect = { x: 20, y: 12, w: 110, h: 36, label: '← Voltar' };
   private restartBtn: ButtonRect = { x: 140, y: 12, w: 100, h: 36, label: '↺ Reiniciar' };
   private pauseBtn: ButtonRect = { x: 250, y: 12, w: 90, h: 36, label: '⏸ Pausa' };
@@ -51,7 +58,8 @@ export class RunScreen implements Screen {
     app: AppController,
     mazeId: string,
     algorithm: AlgorithmName = 'astar',
-    debugMode = false
+    debugMode = false,
+    playerHitpoints?: number,
   ) {
     this.ctx = ctx;
     this.app = app;
@@ -65,6 +73,12 @@ export class RunScreen implements Screen {
     } else {
       this.grid = Grid.fromMazeData(data);
     }
+
+    // HP override from editor settings takes priority, then grid data
+    const hp = playerHitpoints ?? this.grid.playerHitpoints;
+    this.maxHp = hp;
+    this.currentHp = hp;
+    this.grid.playerHitpoints = hp;
 
     this.renderer = new GridRenderer(ctx, GRID_OFFSET_X, GRID_OFFSET_Y);
     this.playerPos = this.grid.playerStart ? { ...this.grid.playerStart } : null;
@@ -87,6 +101,13 @@ export class RunScreen implements Screen {
     this.playerPos = this.grid.playerStart ? { ...this.grid.playerStart } : null;
     this.lastStepTime = performance.now();
     this.lastMoveTime = performance.now();
+    this.currentHp = this.maxHp;
+
+    // Initialise monsters from grid spawn data (static positions)
+    this.monsters = this.grid.monsterSpawns.map(s => ({
+      col: s.pos.col,
+      row: s.pos.row,
+    }));
 
     if (this.debugMode) {
       // Debug: keep generator alive for step-by-step rendering
@@ -146,6 +167,22 @@ export class RunScreen implements Screen {
       }
     }
 
+    // Collision detection — player touches a monster: lose 1 HP, remove monster
+    if (this.state === 'done_found' && this.playerPos) {
+      const alive: MonsterState[] = [];
+      for (const m of this.monsters) {
+        if (m.col === this.playerPos.col && m.row === this.playerPos.row) {
+          this.currentHp--;
+        } else {
+          alive.push(m);
+        }
+      }
+      this.monsters = alive;
+      if (this.currentHp <= 0) {
+        this.state = 'done_caught';
+      }
+    }
+
     // Draw — only pass step overlay in debug mode
     ctx.fillStyle = COLOR_BG;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -153,6 +190,7 @@ export class RunScreen implements Screen {
     this.renderer.draw(this.grid, {
       step: this.debugMode ? (this.currentStep ?? undefined) : undefined,
       playerPos: this.playerPos ?? undefined,
+      monsters: this.monsters,
     });
 
     // Toolbar
@@ -184,7 +222,15 @@ export class RunScreen implements Screen {
     ctx.font = '13px monospace';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${algoLabel}${debugLabel}${stepLabel}`, CANVAS_W - 16, TOOLBAR_H / 2);
+    ctx.fillText(`${algoLabel}${debugLabel}${stepLabel}`, CANVAS_W - 16, TOOLBAR_H / 2 - 9);
+
+    // HP bar
+    const hpText = `❤ ${this.currentHp} / ${this.maxHp}`;
+    ctx.fillStyle = this.currentHp <= 1 ? '#e74c3c' : this.currentHp <= Math.ceil(this.maxHp / 2) ? '#e67e22' : '#2ecc71';
+    ctx.font = '13px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(hpText, CANVAS_W - 16, TOOLBAR_H / 2 + 9);
 
     // Overlay messages
     this.drawStateOverlay();
@@ -192,6 +238,34 @@ export class RunScreen implements Screen {
 
   private drawStateOverlay(): void {
     const { ctx } = this;
+
+    if (this.state === 'done_caught') {
+      ctx.fillStyle = 'rgba(10,10,26,0.85)';
+      ctx.fillRect(CANVAS_W / 2 - 240, CANVAS_H / 2 - 70, 480, 140);
+      ctx.strokeStyle = '#8e44ad';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(CANVAS_W / 2 - 240, CANVAS_H / 2 - 70, 480, 140);
+
+      ctx.fillStyle = '#a855f7';
+      ctx.font = 'bold 24px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Capturado pelo monstro! 👾', CANVAS_W / 2, CANVAS_H / 2 - 20);
+
+      ctx.fillStyle = COLOR_TEXT_DIM;
+      ctx.font = '15px monospace';
+      ctx.fillText(
+        'O personagem colidiu com um monstro.',
+        CANVAS_W / 2,
+        CANVAS_H / 2 + 18
+      );
+      ctx.fillText(
+        'Pressione ↺ Reiniciar ou ← Voltar para editar.',
+        CANVAS_W / 2,
+        CANVAS_H / 2 + 42
+      );
+      return;
+    }
 
     if (this.state === 'done_not_found') {
       // Dark overlay
@@ -230,29 +304,38 @@ export class RunScreen implements Screen {
       const finished = this.pathIndex >= path.length;
 
       if (finished) {
-        ctx.fillStyle = 'rgba(10,10,26,0.82)';
-        ctx.fillRect(CANVAS_W / 2 - 220, CANVAS_H / 2 - 60, 440, 120);
-        ctx.strokeStyle = '#2ecc71';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(CANVAS_W / 2 - 220, CANVAS_H / 2 - 60, 440, 120);
+        const hpLost = this.currentStep.pathHpLost;
+        const hpRemaining = this.maxHp - hpLost;
+        const survived = hpRemaining > 0;
 
-        ctx.fillStyle = '#2ecc71';
+        ctx.fillStyle = 'rgba(10,10,26,0.82)';
+        ctx.fillRect(CANVAS_W / 2 - 240, CANVAS_H / 2 - 70, 480, 150);
+        ctx.strokeStyle = survived ? '#2ecc71' : '#e74c3c';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(CANVAS_W / 2 - 240, CANVAS_H / 2 - 70, 480, 150);
+
+        ctx.fillStyle = survived ? '#2ecc71' : '#e74c3c';
         ctx.font = 'bold 26px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('Saída encontrada! 🎉', CANVAS_W / 2, CANVAS_H / 2 - 16);
+        ctx.fillText(survived ? 'Saída encontrada! 🎉' : 'Sem HP suficiente! 💀', CANVAS_W / 2, CANVAS_H / 2 - 28);
 
         ctx.fillStyle = COLOR_TEXT_DIM;
         ctx.font = '14px monospace';
         ctx.fillText(
           `Caminho: ${path.length - 1} passos • ${this.totalSteps} iterações`,
           CANVAS_W / 2,
-          CANVAS_H / 2 + 18
+          CANVAS_H / 2 + 6
+        );
+        ctx.fillText(
+          `HP perdido no caminho: ${hpLost} • HP restante: ${Math.max(0, hpRemaining)}`,
+          CANVAS_W / 2,
+          CANVAS_H / 2 + 28
         );
         ctx.fillText(
           'Pressione ↺ Reiniciar ou ← Voltar',
           CANVAS_W / 2,
-          CANVAS_H / 2 + 42
+          CANVAS_H / 2 + 52
         );
       }
     }

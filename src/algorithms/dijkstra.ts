@@ -1,6 +1,6 @@
 import type { AlgorithmStep, Position } from '../types';
 import type { Grid } from '../grid/Grid';
-import { posKey, reconstructPath, MinHeap } from './utils';
+import { posKey, reconstructPath, countPathHpLost, MinHeap } from './utils';
 
 export function* dijkstra(grid: Grid, start: Position, end: Position): Generator<AlgorithmStep> {
   const pq = new MinHeap<string>();
@@ -33,6 +33,7 @@ export function* dijkstra(grid: Grid, start: Position, end: Position): Generator
         frontier: new Set(frontier),
         current,
         path,
+        pathHpLost: countPathHpLost(path, grid),
         done: true,
         found: true,
       };
@@ -44,17 +45,18 @@ export function* dijkstra(grid: Grid, start: Position, end: Position): Generator
       frontier: new Set(frontier),
       current,
       path: null,
+      pathHpLost: 0,
       done: false,
       found: false,
     };
 
     const currentDist = dist.get(currentKey) ?? Infinity;
 
-    for (const neighbor of grid.neighbors(current)) {
+    for (const { pos: neighbor, cost } of grid.neighbors(current)) {
       const nKey = posKey(neighbor);
       if (visited.has(nKey)) continue;
 
-      const newDist = currentDist + 1;
+      const newDist = currentDist + cost;
       const prevDist = dist.get(nKey) ?? Infinity;
 
       if (newDist < prevDist) {
@@ -71,6 +73,7 @@ export function* dijkstra(grid: Grid, start: Position, end: Position): Generator
     frontier: new Set(),
     current: null,
     path: null,
+    pathHpLost: 0,
     done: true,
     found: false,
   };

@@ -1,6 +1,6 @@
 import type { AlgorithmStep, Position } from '../types';
 import type { Grid } from '../grid/Grid';
-import { posKey, heuristic, reconstructPath, MinHeap } from './utils';
+import { posKey, heuristic, reconstructPath, countPathHpLost, MinHeap } from './utils';
 
 export function* astar(grid: Grid, start: Position, end: Position): Generator<AlgorithmStep> {
   const openSet = new MinHeap<string>();
@@ -27,6 +27,7 @@ export function* astar(grid: Grid, start: Position, end: Position): Generator<Al
         frontier: new Set(frontier),
         current: end,
         path,
+        pathHpLost: countPathHpLost(path, grid),
         done: true,
         found: true,
       };
@@ -42,17 +43,18 @@ export function* astar(grid: Grid, start: Position, end: Position): Generator<Al
       frontier: new Set(frontier),
       current,
       path: null,
+      pathHpLost: 0,
       done: false,
       found: false,
     };
 
     const currentG = gScore.get(currentKey) ?? Infinity;
 
-    for (const neighbor of grid.neighbors(current)) {
+    for (const { pos: neighbor, cost } of grid.neighbors(current)) {
       const nKey = posKey(neighbor);
       if (visited.has(nKey)) continue;
 
-      const tentativeG = currentG + 1;
+      const tentativeG = currentG + cost;
       const prevG = gScore.get(nKey) ?? Infinity;
 
       if (tentativeG < prevG) {
@@ -71,6 +73,7 @@ export function* astar(grid: Grid, start: Position, end: Position): Generator<Al
     frontier: new Set(),
     current: null,
     path: null,
+    pathHpLost: 0,
     done: true,
     found: false,
   };

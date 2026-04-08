@@ -33,6 +33,15 @@ export function reconstructPath(
   return path;
 }
 
+/** Count how many 'monster' cells appear in a path (excluding start). */
+export function countPathHpLost(path: Position[], grid: { cellHpCost(col: number, row: number): number }): number {
+  let total = 0;
+  for (let i = 1; i < path.length; i++) {
+    total += grid.cellHpCost(path[i]!.col, path[i]!.row);
+  }
+  return total;
+}
+
 /** Minimal binary-heap priority queue */
 export class MinHeap<T> {
   private heap: { priority: number; value: T }[] = [];

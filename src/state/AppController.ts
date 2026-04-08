@@ -49,13 +49,15 @@ export class AppController {
         const settings = this.editorScreen?.getSettings() ?? {
           algorithm: 'astar' as const,
           debugMode: false,
+          playerHitpoints: undefined as number | undefined,
         };
         this.activeScreen = new RunScreen(
           this.ctx,
           this,
           mazeId,
           settings.algorithm,
-          settings.debugMode
+          settings.debugMode,
+          settings.playerHitpoints,
         );
         break;
       }

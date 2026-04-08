@@ -4,7 +4,7 @@ import {
   CANVAS_W, CANVAS_H, CELL_SIZE, GRID_COLS, GRID_ROWS, GRID_PADDING,
   SIDE_TOOLBAR_W,
   COLOR_BG, COLOR_ACCENT, COLOR_TEXT_DIM,
-  COLOR_UI_BG, COLOR_WALL, COLOR_FLOOR, COLOR_EXIT, COLOR_PLAYER,
+  COLOR_UI_BG, COLOR_WALL, COLOR_EXIT, COLOR_PLAYER, COLOR_MUD, COLOR_MONSTER,
 } from '../constants';
 import { drawButton, hitTest, type ButtonRect } from '../ui/button';
 import { Grid } from '../grid/Grid';
@@ -20,7 +20,7 @@ const ROW1_Y = 8;
 const GRID_OFFSET_X = SIDE_TOOLBAR_W + GRID_PADDING;
 const GRID_OFFSET_Y = TOOLBAR_H + GRID_PADDING;
 
-type Tool = 'wall' | 'player' | 'exit' | 'erase';
+type Tool = 'wall' | 'player' | 'exit' | 'mud' | 'monster' | 'erase';
 
 export class MapEditorScreen implements Screen {
   private ctx: CanvasRenderingContext2D;
@@ -36,9 +36,11 @@ export class MapEditorScreen implements Screen {
   private debugMode = false;
   private mazeId: string;
   private mazeName: string;
+  private playerHitpoints = 3;
 
   private algoBtns: { algo: AlgorithmName; btn: ButtonRect }[] = [];
   private debugBtn!: ButtonRect;
+  private hpBtn!: ButtonRect;
   private actionBtns: { id: string; btn: ButtonRect }[] = [];
 
   constructor(ctx: CanvasRenderingContext2D, app: AppController, mazeId?: string) {
@@ -51,6 +53,7 @@ export class MapEditorScreen implements Screen {
       if (data) {
         this.grid = Grid.fromMazeData(data);
         this.mazeName = data.name;
+        this.playerHitpoints = this.grid.playerHitpoints;
       } else {
         this.grid = Grid.createNew();
         this.mazeName = 'Labirinto';
@@ -75,6 +78,7 @@ export class MapEditorScreen implements Screen {
     ];
 
     this.debugBtn = { x: 10 + 78 + 98, y, w: 90, h, label: 'Depurar' };
+    this.hpBtn    = { x: 10 + 78 + 98 + 96, y, w: 70, h, label: `❤ HP:${this.playerHitpoints}` };
 
     this.actionBtns = [
       { id: 'save',  btn: { x: CANVAS_W - 326, y, w: 90, h, label: '💾 Salvar' } },
@@ -116,6 +120,7 @@ export class MapEditorScreen implements Screen {
     }
 
     drawButton(ctx, { ...this.debugBtn, active: this.debugMode }, hitTest(this.debugBtn, this.mx, this.my));
+    drawButton(ctx, this.hpBtn, hitTest(this.hpBtn, this.mx, this.my));
 
     for (const { btn } of this.actionBtns) {
       drawButton(ctx, btn, hitTest(btn, this.mx, this.my));
@@ -144,10 +149,12 @@ export class MapEditorScreen implements Screen {
     ctx.stroke();
 
     const toolDefs: { tool: Tool; icon: string; color: string; label: string }[] = [
-      { tool: 'wall',   icon: '■',  color: COLOR_WALL,   label: 'parede' },
-      { tool: 'player', icon: '🧭', color: COLOR_PLAYER, label: 'início' },
-      { tool: 'exit',   icon: '★',  color: COLOR_EXIT,   label: 'saída'  },
-      { tool: 'erase',  icon: '✕',  color: '#e74c3c',    label: 'apagar' },
+      { tool: 'wall',    icon: '■',  color: COLOR_WALL,    label: 'parede'  },
+      { tool: 'player',  icon: '🧭', color: COLOR_PLAYER,  label: 'início'  },
+      { tool: 'exit',    icon: '★',  color: COLOR_EXIT,    label: 'saída'   },
+      { tool: 'mud',     icon: '💧', color: COLOR_MUD,     label: 'lama'    },
+      { tool: 'monster', icon: '👾', color: COLOR_MONSTER, label: 'monstro' },
+      { tool: 'erase',   icon: '✕',  color: '#e74c3c',     label: 'apagar'  },
     ];
 
     const startY = TOOLBAR_H + 16;
@@ -194,8 +201,8 @@ export class MapEditorScreen implements Screen {
         ctx.stroke();
       }
 
-      // Tool color swatch (small square, top-left of button)
-      if (tool === 'wall') {
+      // Tool color swatch for non-emoji tools
+      if (tool === 'wall' || tool === 'mud') {
         ctx.fillStyle = color;
         ctx.fillRect(x + 6, y + 6, 10, 10);
       }
@@ -251,8 +258,8 @@ export class MapEditorScreen implements Screen {
    */
   private resolveType(button: number): CellType {
     if (button === 2) return 'floor';
-    // Left button: use active tool
-    return this.activeTool === 'erase' ? 'floor' : this.activeTool;
+    if (this.activeTool === 'erase') return 'floor';
+    return this.activeTool;
   }
 
   private applyTool(col: number, row: number, button: number): void {
@@ -296,7 +303,7 @@ export class MapEditorScreen implements Screen {
       const btnSize = SIDE_TOOLBAR_W - PAD * 2;
       const startY = TOOLBAR_H + 16;
       const spacing = btnSize + 10;
-      const tools: Tool[] = ['wall', 'player', 'exit', 'erase'];
+      const tools: Tool[] = ['wall', 'player', 'exit', 'mud', 'monster', 'erase'];
       for (let i = 0; i < tools.length; i++) {
         const bx = PAD, by = startY + i * spacing;
         if (x >= bx && x <= bx + btnSize && y >= by && y <= by + btnSize) {
@@ -319,6 +326,18 @@ export class MapEditorScreen implements Screen {
 
     if (hitTest(this.debugBtn, x, y)) {
       this.debugMode = !this.debugMode;
+      return;
+    }
+
+    if (hitTest(this.hpBtn, x, y)) {
+      const raw = prompt(`Hitpoints do personagem (1–99):`, String(this.playerHitpoints));
+      if (raw === null) return;
+      const v = parseInt(raw, 10);
+      if (!isNaN(v) && v >= 1 && v <= 99) {
+        this.playerHitpoints = v;
+        this.grid.playerHitpoints = v;
+        this.hpBtn.label = `❤ HP:${v}`;
+      }
       return;
     }
 
@@ -365,8 +384,8 @@ export class MapEditorScreen implements Screen {
     }
   }
 
-  getSettings(): { algorithm: AlgorithmName; debugMode: boolean } {
-    return { algorithm: this.algorithm, debugMode: this.debugMode };
+  getSettings(): { algorithm: AlgorithmName; debugMode: boolean; playerHitpoints: number } {
+    return { algorithm: this.algorithm, debugMode: this.debugMode, playerHitpoints: this.playerHitpoints };
   }
 
   getMazeId(): string { return this.mazeId; }

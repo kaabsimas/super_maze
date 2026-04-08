@@ -2,14 +2,16 @@ import {
   CELL_SIZE,
   COLOR_WALL, COLOR_FLOOR, COLOR_EXIT,
   COLOR_PLAYER, COLOR_VISITED, COLOR_FRONTIER, COLOR_PATH,
+  COLOR_MUD, COLOR_MONSTER,
   PLAYER_EMOJI,
 } from '../constants';
-import type { AlgorithmStep, Position } from '../types';
+import type { AlgorithmStep, MonsterState, Position } from '../types';
 import type { Grid } from './Grid';
 
 export interface RenderOverlay {
   step?: AlgorithmStep;
-  playerPos?: Position;   // animated player position during run
+  playerPos?: Position;         // animated player position during run
+  monsters?: MonsterState[];    // current monster positions during run
 }
 
 export class GridRenderer {
@@ -25,7 +27,13 @@ export class GridRenderer {
 
   draw(grid: Grid, overlay: RenderOverlay = {}): void {
     const { ctx, offsetX, offsetY } = this;
-    const { step, playerPos } = overlay;
+    const { step, playerPos, monsters } = overlay;
+
+    // Build a set of current monster positions for quick lookup
+    const monsterKeys = new Set<string>();
+    if (monsters) {
+      for (const m of monsters) monsterKeys.add(`${m.col},${m.row}`);
+    }
 
     for (let row = 0; row < grid.rows; row++) {
       for (let col = 0; col < grid.cols; col++) {
@@ -40,7 +48,10 @@ export class GridRenderer {
           color = COLOR_WALL;
         } else if (cell === 'exit') {
           color = COLOR_EXIT;
-        } else if (cell === 'player') {
+        } else if (cell === 'mud') {
+          color = COLOR_MUD;
+        } else if (cell === 'monster') {
+          // Spawn cell shown as floor (monster drawn separately)
           color = COLOR_FLOOR;
         } else {
           color = COLOR_FLOOR;
@@ -73,6 +84,34 @@ export class GridRenderer {
           ctx.textBaseline = 'middle';
           ctx.fillText('★', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
         }
+
+        // Mud texture — small dots
+        if (cell === 'mud') {
+          ctx.fillStyle = 'rgba(0,0,0,0.25)';
+          const d = 3;
+          ctx.fillRect(x + 4,            y + 4,            d, d);
+          ctx.fillRect(x + CELL_SIZE - 8, y + 8,            d, d);
+          ctx.fillRect(x + 6,            y + CELL_SIZE - 8, d, d);
+          ctx.fillRect(x + CELL_SIZE - 7, y + CELL_SIZE - 6, d, d);
+        }
+
+        // Monster spawn indicator (editor view — no live monsters passed)
+        if (cell === 'monster' && !monsters) {
+          ctx.fillStyle = COLOR_MONSTER;
+          ctx.font = `${CELL_SIZE * 0.75}px serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('👾', x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 1);
+        }
+      }
+    }
+
+    // Draw live monsters (run mode)
+    if (monsters) {
+      for (const m of monsters) {
+        // Only draw if not on a wall (shouldn't happen but guard)
+        if (grid.getCell(m.col, m.row) === 'wall') continue;
+        this.drawMonster(m.col, m.row);
       }
     }
 
@@ -99,6 +138,23 @@ export class GridRenderer {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(PLAYER_EMOJI, x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 1);
+  }
+
+  private drawMonster(col: number, row: number): void {
+    const { ctx, offsetX, offsetY } = this;
+    const x = offsetX + col * CELL_SIZE;
+    const y = offsetY + row * CELL_SIZE;
+
+    // Pulsing purple circle
+    ctx.fillStyle = COLOR_MONSTER;
+    ctx.beginPath();
+    ctx.arc(x + CELL_SIZE / 2, y + CELL_SIZE / 2, CELL_SIZE * 0.44, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.font = `${CELL_SIZE * 0.65}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('👾', x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 1);
   }
 
   cellAt(canvasX: number, canvasY: number): { col: number; row: number } | null {
