@@ -43,6 +43,7 @@ export class RunScreen implements Screen {
 
   // Treasure pathfinding - store calculated path segments
   private pathSegments: Position[][] = [];
+  private hasTreasures = false;
 
   // Monsters
   private monsters: MonsterState[] = [];
@@ -116,6 +117,7 @@ export class RunScreen implements Screen {
     // Check if there are treasures to collect
     const treasures = this.grid.treasures ?? [];
     console.log('🎯 START: treasures.length =', treasures.length);
+    this.hasTreasures = treasures.length > 0;
     if (treasures.length > 0) {
       // Build path segments for each treasure
       console.log('🎯 Building treasure path segments...');
@@ -127,6 +129,7 @@ export class RunScreen implements Screen {
       // Debug: Create a generator that shows each treasure segment, then final path
       if (treasures.length > 0) {
         // For treasures: show step-by-step calculation of each segment
+        // But also pre-calculate segments so we can use them later for animation
         this.generator = this.createDebugGeneratorForTreasures(algo);
       } else {
         // No treasures, use normal path from start to exit
@@ -315,13 +318,23 @@ export class RunScreen implements Screen {
         if (!result.done) {
           this.currentStep = result.value;
           this.stepCount++;
-          if (this.currentStep.done) {
+          // In debug mode with treasures, we show each segment but don't mark done yet
+          // (because there might be more segments coming from the generator)
+          if (this.currentStep.done && !this.hasTreasures) {
+            // Only mark done if this is NOT a treasure debug session
             this.totalSteps = this.stepCount;
             if (this.currentStep.found) {
               this.state = 'done_found';
             } else {
               this.state = 'done_not_found';
             }
+          }
+        } else {
+          // Generator finished
+          if (this.hasTreasures) {
+            console.log('🎯 DEBUG: Generator finished, combining treasure segments');
+            this.combineTreasureSegments();
+            this.state = 'done_found';
           }
         }
       }
