@@ -4,7 +4,7 @@ import {
   CANVAS_W, CANVAS_H, CELL_SIZE, GRID_COLS, GRID_ROWS, GRID_PADDING,
   SIDE_TOOLBAR_W,
   COLOR_BG, COLOR_ACCENT, COLOR_TEXT_DIM,
-  COLOR_UI_BG, COLOR_WALL, COLOR_EXIT, COLOR_PLAYER, COLOR_MUD, COLOR_MONSTER,
+  COLOR_UI_BG, COLOR_WALL, COLOR_EXIT, COLOR_PLAYER, COLOR_MUD, COLOR_MONSTER, COLOR_POTION,
 } from '../constants';
 import { drawButton, hitTest, type ButtonRect } from '../ui/button';
 import { Grid } from '../grid/Grid';
@@ -20,7 +20,7 @@ const ROW1_Y = 8;
 const GRID_OFFSET_X = SIDE_TOOLBAR_W + GRID_PADDING;
 const GRID_OFFSET_Y = TOOLBAR_H + GRID_PADDING;
 
-type Tool = 'wall' | 'player' | 'exit' | 'mud' | 'monster' | 'erase';
+type Tool = 'wall' | 'player' | 'exit' | 'mud' | 'monster' | 'potion' | 'erase';
 
 export class MapEditorScreen implements Screen {
   private ctx: CanvasRenderingContext2D;
@@ -154,6 +154,7 @@ export class MapEditorScreen implements Screen {
       { tool: 'exit',    icon: '★',  color: COLOR_EXIT,    label: 'saída'   },
       { tool: 'mud',     icon: '💧', color: COLOR_MUD,     label: 'lama'    },
       { tool: 'monster', icon: '👾', color: COLOR_MONSTER, label: 'monstro' },
+      { tool: 'potion',  icon: '🧪', color: COLOR_POTION,  label: 'poção'   },
       { tool: 'erase',   icon: '✕',  color: '#e74c3c',     label: 'apagar'  },
     ];
 
@@ -303,7 +304,7 @@ export class MapEditorScreen implements Screen {
       const btnSize = SIDE_TOOLBAR_W - PAD * 2;
       const startY = TOOLBAR_H + 16;
       const spacing = btnSize + 10;
-      const tools: Tool[] = ['wall', 'player', 'exit', 'mud', 'monster', 'erase'];
+      const tools: Tool[] = ['wall', 'player', 'exit', 'mud', 'monster', 'potion', 'erase'];
       for (let i = 0; i < tools.length; i++) {
         const bx = PAD, by = startY + i * spacing;
         if (x >= bx && x <= bx + btnSize && y >= by && y <= by + btnSize) {

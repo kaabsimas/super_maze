@@ -30,6 +30,7 @@ export const COLOR_PLAYER  = '#e74c3c';
 export const COLOR_EXIT    = '#2ecc71';
 export const COLOR_MUD     = '#7d5a3c';
 export const COLOR_MONSTER = '#8e44ad';
+export const COLOR_POTION  = '#1abc9c';
 export const COLOR_VISITED = '#aed6f1';
 export const COLOR_FRONTIER= '#f9e79f';
 export const COLOR_PATH    = '#f39c12';

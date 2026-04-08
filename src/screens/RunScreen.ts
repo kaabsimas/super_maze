@@ -167,8 +167,16 @@ export class RunScreen implements Screen {
       }
     }
 
-    // Collision detection — player touches a monster: lose 1 HP, remove monster
+    // Collision detection — player touches a monster or potion
     if (this.state === 'done_found' && this.playerPos) {
+      // Check for potion: restore 1 HP, consume it
+      const cell = this.grid.getCell(this.playerPos.col, this.playerPos.row);
+      if (cell === 'potion') {
+        this.currentHp = Math.min(this.currentHp + 1, this.maxHp);
+        this.grid.setCell(this.playerPos.col, this.playerPos.row, 'floor');
+      }
+
+      // Check for monster: lose 1 HP, remove monster
       const alive: MonsterState[] = [];
       for (const m of this.monsters) {
         if (m.col === this.playerPos.col && m.row === this.playerPos.row) {
@@ -211,7 +219,7 @@ export class RunScreen implements Screen {
       drawButton(ctx, this.pauseBtn, hitTest(this.pauseBtn, this.mx, this.my));
     }
 
-    // Status info
+    // Status info on the left
     const algoLabel = this.algorithm === 'astar' ? 'A*' : 'Dijkstra';
     const debugLabel = this.debugMode ? ' • Debug' : '';
     const stepLabel = this.totalSteps > 0
@@ -219,21 +227,67 @@ export class RunScreen implements Screen {
       : this.stepCount > 0 ? ` • ${this.stepCount} iterações` : '';
 
     ctx.fillStyle = COLOR_TEXT_DIM;
-    ctx.font = '13px monospace';
-    ctx.textAlign = 'right';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${algoLabel}${debugLabel}${stepLabel}`, CANVAS_W - 16, TOOLBAR_H / 2 - 9);
+    ctx.fillText(`${algoLabel}${debugLabel}${stepLabel}`, 360, TOOLBAR_H / 2);
 
-    // HP bar
-    const hpText = `❤ ${this.currentHp} / ${this.maxHp}`;
-    ctx.fillStyle = this.currentHp <= 1 ? '#e74c3c' : this.currentHp <= Math.ceil(this.maxHp / 2) ? '#e67e22' : '#2ecc71';
-    ctx.font = '13px monospace';
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(hpText, CANVAS_W - 16, TOOLBAR_H / 2 + 9);
+    // HP Panel on the right — bigger and more visible
+    this.drawHpPanel(ctx);
 
     // Overlay messages
     this.drawStateOverlay();
+  }
+
+  private drawHpPanel(ctx: CanvasRenderingContext2D): void {
+    const panelW = 180;
+    const panelH = 48;
+    const panelX = CANVAS_W - panelW - 12;
+    const panelY = 6;
+
+    // Panel background
+    ctx.fillStyle = 'rgba(30, 30, 50, 0.9)';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+
+    // Panel border
+    const hpColor = this.currentHp <= 1 ? '#e74c3c' : this.currentHp <= Math.ceil(this.maxHp / 2) ? '#e67e22' : '#2ecc71';
+    ctx.strokeStyle = hpColor;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+    // HP label
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('HITPOINTS', panelX + 10, panelY + 6);
+
+    // HP value and max
+    ctx.fillStyle = hpColor;
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${this.currentHp}/${this.maxHp}`, panelX + 10, panelY + 18);
+
+    // HP bar
+    const barW = panelW - 20;
+    const barH = 6;
+    const barX = panelX + 10;
+    const barY = panelY + 40;
+
+    // Background of bar
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // HP fill
+    const fillW = (this.currentHp / this.maxHp) * barW;
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(barX, barY, fillW, barH);
+
+    // Bar border
+    ctx.strokeStyle = hpColor;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
   }
 
   private drawStateOverlay(): void {
@@ -306,31 +360,31 @@ export class RunScreen implements Screen {
       if (finished) {
         const hpLost = this.currentStep.pathHpLost;
         const hpRemaining = this.maxHp - hpLost;
-        const survived = hpRemaining > 0;
+        const survived = this.currentHp > 0;
 
         ctx.fillStyle = 'rgba(10,10,26,0.82)';
-        ctx.fillRect(CANVAS_W / 2 - 240, CANVAS_H / 2 - 70, 480, 150);
+        ctx.fillRect(CANVAS_W / 2 - 260, CANVAS_H / 2 - 80, 520, 170);
         ctx.strokeStyle = survived ? '#2ecc71' : '#e74c3c';
         ctx.lineWidth = 2;
-        ctx.strokeRect(CANVAS_W / 2 - 240, CANVAS_H / 2 - 70, 480, 150);
+        ctx.strokeRect(CANVAS_W / 2 - 260, CANVAS_H / 2 - 80, 520, 170);
 
         ctx.fillStyle = survived ? '#2ecc71' : '#e74c3c';
         ctx.font = 'bold 26px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(survived ? 'Saída encontrada! 🎉' : 'Sem HP suficiente! 💀', CANVAS_W / 2, CANVAS_H / 2 - 28);
+        ctx.fillText(survived ? 'Saída encontrada! 🎉' : 'Sem HP suficiente! 💀', CANVAS_W / 2, CANVAS_H / 2 - 32);
 
         ctx.fillStyle = COLOR_TEXT_DIM;
-        ctx.font = '14px monospace';
+        ctx.font = '13px monospace';
         ctx.fillText(
           `Caminho: ${path.length - 1} passos • ${this.totalSteps} iterações`,
           CANVAS_W / 2,
-          CANVAS_H / 2 + 6
+          CANVAS_H / 2 - 2
         );
         ctx.fillText(
-          `HP perdido no caminho: ${hpLost} • HP restante: ${Math.max(0, hpRemaining)}`,
+          `Monstros no caminho: ${hpLost} • HP após colisões: ${this.currentHp} / ${this.maxHp}`,
           CANVAS_W / 2,
-          CANVAS_H / 2 + 28
+          CANVAS_H / 2 + 18
         );
         ctx.fillText(
           'Pressione ↺ Reiniciar ou ← Voltar',

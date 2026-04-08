@@ -88,7 +88,7 @@ export class Grid {
   isWalkable(col: number, row: number): boolean {
     const cell = this.getCell(col, row);
     return cell === 'floor' || cell === 'player' || cell === 'exit'
-        || cell === 'mud'   || cell === 'monster';
+        || cell === 'mud'   || cell === 'monster' || cell === 'potion';
   }
 
   /** Cost to enter a cell (used by pathfinding algorithms). */
@@ -96,7 +96,7 @@ export class Grid {
     const cell = this.getCell(col, row);
     if (cell === 'mud')     return COST_MUD;
     if (cell === 'monster') return COST_MONSTER;
-    return COST_FLOOR;
+    return COST_FLOOR;  // potion has no special path cost
   }
 
   /** HP damage taken when entering a cell (1 for monster, 0 otherwise). */

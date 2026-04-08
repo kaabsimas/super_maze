@@ -1,4 +1,4 @@
-export type CellType = 'wall' | 'floor' | 'player' | 'exit' | 'mud' | 'monster';
+export type CellType = 'wall' | 'floor' | 'player' | 'exit' | 'mud' | 'monster' | 'potion';
 
 export interface Cell {
   type: CellType;

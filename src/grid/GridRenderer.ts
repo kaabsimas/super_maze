@@ -2,7 +2,7 @@ import {
   CELL_SIZE,
   COLOR_WALL, COLOR_FLOOR, COLOR_EXIT,
   COLOR_PLAYER, COLOR_VISITED, COLOR_FRONTIER, COLOR_PATH,
-  COLOR_MUD, COLOR_MONSTER,
+  COLOR_MUD, COLOR_MONSTER, COLOR_POTION,
   PLAYER_EMOJI,
 } from '../constants';
 import type { AlgorithmStep, MonsterState, Position } from '../types';
@@ -50,6 +50,8 @@ export class GridRenderer {
           color = COLOR_EXIT;
         } else if (cell === 'mud') {
           color = COLOR_MUD;
+        } else if (cell === 'potion') {
+          color = COLOR_POTION;
         } else if (cell === 'monster') {
           // Spawn cell shown as floor (monster drawn separately)
           color = COLOR_FLOOR;
@@ -93,6 +95,15 @@ export class GridRenderer {
           ctx.fillRect(x + CELL_SIZE - 8, y + 8,            d, d);
           ctx.fillRect(x + 6,            y + CELL_SIZE - 8, d, d);
           ctx.fillRect(x + CELL_SIZE - 7, y + CELL_SIZE - 6, d, d);
+        }
+
+        // Potion icon
+        if (cell === 'potion') {
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `${CELL_SIZE * 0.65}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('🧪', x + CELL_SIZE / 2, y + CELL_SIZE / 2);
         }
 
         // Monster spawn indicator (editor view — no live monsters passed)
