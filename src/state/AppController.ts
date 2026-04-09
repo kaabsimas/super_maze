@@ -5,6 +5,7 @@ import { MainMenuScreen } from '../screens/MainMenuScreen';
 import { SavedMapsScreen } from '../screens/SavedMapsScreen';
 import { MapEditorScreen } from '../screens/MapEditorScreen';
 import { RunScreen } from '../screens/RunScreen';
+import { LangSwitcher } from '../ui/LangSwitcher';
 
 export class AppController {
   private canvas: HTMLCanvasElement;
@@ -12,6 +13,9 @@ export class AppController {
   private activeScreen: Screen;
   private rafId = 0;
   private lastTime = 0;
+  private langSwitcher: LangSwitcher;
+  /** True when the last mousedown was consumed by the LangSwitcher. */
+  private langConsumed = false;
 
   // Track editor state so RunScreen can inherit algo/debug settings
   private editorScreen: MapEditorScreen | null = null;
@@ -19,12 +23,14 @@ export class AppController {
   constructor(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
     this.canvas = canvas;
     this.ctx = ctx;
+    this.langSwitcher = new LangSwitcher(ctx);
     this.activeScreen = new MainMenuScreen(ctx, this);
     this.bindEvents();
     this.loop(0);
   }
 
   navigateTo(screen: ScreenName, payload: NavigatePayload): void {
+    this.langSwitcher.close();
     this.activeScreen.dispose();
 
     switch (screen) {
@@ -70,13 +76,14 @@ export class AppController {
 
     this.ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     this.activeScreen.render(dt);
+    // LangSwitcher renders on top of everything
+    this.langSwitcher.render();
 
     this.rafId = requestAnimationFrame(t => this.loop(t));
   }
 
   private bindEvents(): void {
     const c = this.canvas;
-    const scale = window.devicePixelRatio || 1;
 
     const coords = (e: MouseEvent) => {
       const rect = c.getBoundingClientRect();
@@ -88,17 +95,25 @@ export class AppController {
 
     c.addEventListener('mousemove', e => {
       const { x, y } = coords(e);
+      this.langSwitcher.onMouseMove(x, y);
       this.activeScreen.onMouseMove(x, y);
     });
 
     c.addEventListener('mousedown', e => {
       const { x, y } = coords(e);
-      this.activeScreen.onMouseDown(x, y, e.button);
+      this.langConsumed = this.langSwitcher.onMouseDown(x, y);
+      if (!this.langConsumed) {
+        this.activeScreen.onMouseDown(x, y, e.button);
+      }
     });
 
     c.addEventListener('mouseup', e => {
       const { x, y } = coords(e);
-      this.activeScreen.onMouseUp(x, y, e.button);
+      if (this.langConsumed) {
+        this.langConsumed = false;
+      } else {
+        this.activeScreen.onMouseUp(x, y, e.button);
+      }
     });
 
     // Prevent context menu on right-click

@@ -7,6 +7,7 @@ import {
 import { drawButton, hitTest, type ButtonRect } from '../ui/button';
 import { loadMaps, deleteMap } from '../storage';
 import type { MazeData } from '../types';
+import { t, localeDateString } from '../i18n/index';
 
 const LIST_Y = 120;
 const ITEM_H = 64;
@@ -24,7 +25,7 @@ export class SavedMapsScreen implements Screen {
   private hoveredIndex = -1;
 
   private backBtn: ButtonRect = {
-    x: 20, y: 14, w: 110, h: 36, label: '← Voltar',
+    x: 20, y: 14, w: 110, h: 36, label: '',
   };
 
   constructor(ctx: CanvasRenderingContext2D, app: AppController) {
@@ -36,6 +37,8 @@ export class SavedMapsScreen implements Screen {
   render(_dt: number): void {
     const { ctx } = this;
 
+    this.backBtn.label = t('savedMaps.back');
+
     ctx.fillStyle = COLOR_BG;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
@@ -46,7 +49,7 @@ export class SavedMapsScreen implements Screen {
     ctx.font = 'bold 28px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Mapas Salvos', CANVAS_W / 2, 40);
+    ctx.fillText(t('savedMaps.title'), CANVAS_W / 2, 40);
 
     drawButton(ctx, this.backBtn, hitTest(this.backBtn, this.mx, this.my));
 
@@ -55,9 +58,9 @@ export class SavedMapsScreen implements Screen {
       ctx.font = '18px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Nenhum mapa salvo ainda.', CANVAS_W / 2, CANVAS_H / 2);
+      ctx.fillText(t('savedMaps.empty'), CANVAS_W / 2, CANVAS_H / 2);
       ctx.font = '14px monospace';
-      ctx.fillText('Crie um novo jogo para começar!', CANVAS_W / 2, CANVAS_H / 2 + 30);
+      ctx.fillText(t('savedMaps.emptyHint'), CANVAS_W / 2, CANVAS_H / 2 + 30);
       return;
     }
 
@@ -89,7 +92,7 @@ export class SavedMapsScreen implements Screen {
       ctx.fillText(map.name, ITEM_X + 16, iy + 22);
 
       // Meta
-      const date = new Date(map.updatedAt).toLocaleDateString('pt-BR');
+      const date = localeDateString(new Date(map.updatedAt));
       ctx.fillStyle = COLOR_TEXT_DIM;
       ctx.font = '12px monospace';
       ctx.fillText(
@@ -100,13 +103,13 @@ export class SavedMapsScreen implements Screen {
 
       // Action buttons
       const editBtn: ButtonRect = {
-        x: ITEM_X + ITEM_W - 220, y: iy + 12, w: 90, h: 32, label: '✏ Editar',
+        x: ITEM_X + ITEM_W - 220, y: iy + 12, w: 90, h: 32, label: t('savedMaps.edit'),
       };
       const runBtn: ButtonRect = {
-        x: ITEM_X + ITEM_W - 120, y: iy + 12, w: 80, h: 32, label: '▶ Rodar',
+        x: ITEM_X + ITEM_W - 120, y: iy + 12, w: 80, h: 32, label: t('savedMaps.run'),
       };
       const delBtn: ButtonRect = {
-        x: ITEM_X + ITEM_W - 30, y: iy + 12, w: 24, h: 32, label: '✕', danger: true,
+        x: ITEM_X + ITEM_W - 30, y: iy + 12, w: 24, h: 32, label: t('savedMaps.del'), danger: true,
       };
 
       drawButton(ctx, editBtn, hitTest(editBtn, this.mx, this.my));
@@ -119,13 +122,13 @@ export class SavedMapsScreen implements Screen {
       ctx.fillStyle = COLOR_TEXT_DIM;
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('▲ scroll up', CANVAS_W / 2, LIST_Y - 10);
+      ctx.fillText(t('savedMaps.scrollUp'), CANVAS_W / 2, LIST_Y - 10);
     }
     if (end < this.maps.length) {
       ctx.fillStyle = COLOR_TEXT_DIM;
       ctx.font = '14px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('▼ scroll down', CANVAS_W / 2, LIST_Y + VISIBLE * ITEM_H + 10);
+      ctx.fillText(t('savedMaps.scrollDown'), CANVAS_W / 2, LIST_Y + VISIBLE * ITEM_H + 10);
     }
   }
 
@@ -134,9 +137,9 @@ export class SavedMapsScreen implements Screen {
   } {
     const iy = LIST_Y + (i - this.scroll) * ITEM_H;
     return {
-      edit: { x: ITEM_X + ITEM_W - 220, y: iy + 12, w: 90, h: 32, label: '✏ Editar' },
-      run:  { x: ITEM_X + ITEM_W - 120, y: iy + 12, w: 80, h: 32, label: '▶ Rodar' },
-      del:  { x: ITEM_X + ITEM_W - 30,  y: iy + 12, w: 24, h: 32, label: '✕', danger: true },
+      edit: { x: ITEM_X + ITEM_W - 220, y: iy + 12, w: 90, h: 32, label: t('savedMaps.edit') },
+      run:  { x: ITEM_X + ITEM_W - 120, y: iy + 12, w: 80, h: 32, label: t('savedMaps.run') },
+      del:  { x: ITEM_X + ITEM_W - 30,  y: iy + 12, w: 24, h: 32, label: t('savedMaps.del'), danger: true },
     };
   }
 
@@ -179,7 +182,7 @@ export class SavedMapsScreen implements Screen {
         return;
       }
       if (hitTest(btns.del, x, y)) {
-        if (confirm(`Excluir mapa "${map.name}"?`)) {
+        if (confirm(t('savedMaps.confirmDelete', { name: map.name }))) {
           deleteMap(map.id);
           this.maps = loadMaps().sort((a, b) => b.updatedAt - a.updatedAt);
           if (this.scroll > 0 && this.scroll >= this.maps.length) {

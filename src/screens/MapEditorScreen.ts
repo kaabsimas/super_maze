@@ -11,6 +11,7 @@ import { Grid } from '../grid/Grid';
 import { GridRenderer } from '../grid/GridRenderer';
 import { saveMap, getMap, generateId } from '../storage';
 import type { CellType, AlgorithmName } from '../types';
+import { t, localeDateString } from '../i18n/index';
 
 // Single-row toolbar
 const ROW_H = 36;
@@ -56,11 +57,11 @@ export class MapEditorScreen implements Screen {
         this.playerHitpoints = this.grid.playerHitpoints;
       } else {
         this.grid = Grid.createNew();
-        this.mazeName = 'Labirinto';
+        this.mazeName = t('editor.defaultName', { date: localeDateString(new Date()) });
       }
     } else {
       this.grid = Grid.createNew();
-      this.mazeName = `Labirinto ${new Date().toLocaleDateString('pt-BR')}`;
+      this.mazeName = t('editor.defaultName', { date: localeDateString(new Date()) });
     }
 
     this.renderer = new GridRenderer(ctx, GRID_OFFSET_X, GRID_OFFSET_Y);
@@ -77,19 +78,29 @@ export class MapEditorScreen implements Screen {
       { algo: 'dijkstra', btn: { x: 10 + 78, y, w: 92, h, label: 'Dijkstra' } },
     ];
 
-    this.debugBtn = { x: 10 + 78 + 98, y, w: 90, h, label: 'Depurar' };
+    this.debugBtn = { x: 10 + 78 + 98, y, w: 90, h, label: '' };
     this.hpBtn    = { x: 10 + 78 + 98 + 96, y, w: 70, h, label: `❤ HP:${this.playerHitpoints}` };
 
+    // Action buttons shifted 42px left to make room for the LangSwitcher in the top-right
     this.actionBtns = [
-      { id: 'save',  btn: { x: CANVAS_W - 326, y, w: 90, h, label: '💾 Salvar' } },
-      { id: 'run',   btn: { x: CANVAS_W - 228, y, w: 90, h, label: '▶ Rodar'   } },
-      { id: 'clear', btn: { x: CANVAS_W - 130, y, w: 80, h, label: '🗑 Limpar'  } },
-      { id: 'back',  btn: { x: CANVAS_W - 44,  y, w: 34, h, label: '✕'         } },
+      { id: 'save',  btn: { x: CANVAS_W - 368, y, w: 90, h, label: '' } },
+      { id: 'run',   btn: { x: CANVAS_W - 270, y, w: 90, h, label: '' } },
+      { id: 'clear', btn: { x: CANVAS_W - 172, y, w: 80, h, label: '' } },
+      { id: 'back',  btn: { x: CANVAS_W - 86,  y, w: 34, h, label: '' } },
     ];
   }
 
   render(_dt: number): void {
     const { ctx } = this;
+
+    // Update translated labels each frame
+    this.debugBtn.label = t('editor.debug');
+    for (const { id, btn } of this.actionBtns) {
+      if (id === 'save')  btn.label = t('editor.save');
+      if (id === 'run')   btn.label = t('editor.run');
+      if (id === 'clear') btn.label = t('editor.clear');
+      if (id === 'back')  btn.label = t('editor.back');
+    }
 
     ctx.fillStyle = COLOR_BG;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -113,7 +124,7 @@ export class MapEditorScreen implements Screen {
     ctx.font = '11px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Algoritmo:', 10, TOOLBAR_H / 2 - 10);
+    ctx.fillText(t('editor.algorithm'), 10, TOOLBAR_H / 2 - 10);
 
     for (const { algo, btn } of this.algoBtns) {
       drawButton(ctx, { ...btn, active: this.algorithm === algo }, hitTest(btn, this.mx, this.my));
@@ -149,14 +160,14 @@ export class MapEditorScreen implements Screen {
     ctx.stroke();
 
     const toolDefs: { tool: Tool; icon: string; color: string; label: string }[] = [
-      { tool: 'wall',    icon: '■',  color: COLOR_WALL,    label: 'parede'  },
-      { tool: 'player',  icon: '🧭', color: COLOR_PLAYER,  label: 'início'  },
-      { tool: 'exit',    icon: '★',  color: COLOR_EXIT,    label: 'saída'   },
-      { tool: 'mud',     icon: '💧', color: COLOR_MUD,     label: 'lama'    },
-      { tool: 'monster', icon: '👾', color: COLOR_MONSTER, label: 'monstro' },
-      { tool: 'potion',  icon: '🧪', color: COLOR_POTION,  label: 'poção'   },
-      { tool: 'treasure',icon: '💎', color: '#f39c12',     label: 'tesouro' },
-      { tool: 'erase',   icon: '✕',  color: '#e74c3c',     label: 'apagar'  },
+      { tool: 'wall',     icon: '■',  color: COLOR_WALL,    label: t('editor.tool.wall')     },
+      { tool: 'player',   icon: '🧭', color: COLOR_PLAYER,  label: t('editor.tool.player')   },
+      { tool: 'exit',     icon: '★',  color: COLOR_EXIT,    label: t('editor.tool.exit')     },
+      { tool: 'mud',      icon: '💧', color: COLOR_MUD,     label: t('editor.tool.mud')      },
+      { tool: 'monster',  icon: '👾', color: COLOR_MONSTER, label: t('editor.tool.monster')  },
+      { tool: 'potion',   icon: '🧪', color: COLOR_POTION,  label: t('editor.tool.potion')   },
+      { tool: 'treasure', icon: '💎', color: '#f39c12',     label: t('editor.tool.treasure') },
+      { tool: 'erase',    icon: '✕',  color: '#e74c3c',     label: t('editor.tool.erase')    },
     ];
 
     const startY = TOOLBAR_H + 16;
@@ -227,8 +238,8 @@ export class MapEditorScreen implements Screen {
 
   private drawHints(): void {
     const hints: string[] = [];
-    if (!this.grid.playerStart) hints.push('⚠ defina início (🧭)');
-    if (!this.grid.exitPos)     hints.push('⚠ defina saída (★)');
+    if (!this.grid.playerStart) hints.push(t('editor.hint.noStart'));
+    if (!this.grid.exitPos)     hints.push(t('editor.hint.noExit'));
     if (hints.length === 0) return;
 
     this.ctx.fillStyle = '#e67e22';
@@ -332,7 +343,7 @@ export class MapEditorScreen implements Screen {
     }
 
     if (hitTest(this.hpBtn, x, y)) {
-      const raw = prompt(`Hitpoints do personagem (1–99):`, String(this.playerHitpoints));
+      const raw = prompt(t('editor.prompt.hp'), String(this.playerHitpoints));
       if (raw === null) return;
       const v = parseInt(raw, 10);
       if (!isNaN(v) && v >= 1 && v <= 99) {
@@ -354,7 +365,7 @@ export class MapEditorScreen implements Screen {
   private handleAction(id: string): void {
     switch (id) {
       case 'save': {
-        const name = prompt('Nome do mapa:', this.mazeName);
+        const name = prompt(t('editor.prompt.mapName'), this.mazeName);
         if (name === null) return;
         this.mazeName = name.trim() || this.mazeName;
         saveMap(this.grid.toMazeData(this.mazeId, this.mazeName));
@@ -362,11 +373,11 @@ export class MapEditorScreen implements Screen {
       }
       case 'run': {
         if (!this.grid.playerStart) {
-          alert('Defina o ponto de início antes de executar.');
+          alert(t('editor.alert.noStart'));
           return;
         }
         if (!this.grid.exitPos) {
-          alert('Defina a saída antes de executar.');
+          alert(t('editor.alert.noExit'));
           return;
         }
         saveMap(this.grid.toMazeData(this.mazeId, this.mazeName));
@@ -374,7 +385,7 @@ export class MapEditorScreen implements Screen {
         break;
       }
       case 'clear': {
-        if (confirm('Limpar todo o labirinto?')) {
+        if (confirm(t('editor.confirm.clear'))) {
           this.grid = Grid.createNew();
         }
         break;

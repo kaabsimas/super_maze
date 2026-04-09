@@ -12,6 +12,7 @@ import { getMap } from '../storage';
 import { astar } from '../algorithms/astar';
 import { dijkstra } from '../algorithms/dijkstra';
 import type { AlgorithmName, AlgorithmStep, MonsterState, Position } from '../types';
+import { t } from '../i18n/index';
 
 const TOOLBAR_H = 60;
 // Center the grid horizontally and vertically in the available space
@@ -52,9 +53,9 @@ export class RunScreen implements Screen {
   private maxHp = 3;
   private currentHp = 3;
 
-  private backBtn: ButtonRect = { x: 20, y: 12, w: 110, h: 36, label: '← Voltar' };
-  private restartBtn: ButtonRect = { x: 140, y: 12, w: 100, h: 36, label: '↺ Reiniciar' };
-  private pauseBtn: ButtonRect = { x: 250, y: 12, w: 90, h: 36, label: '⏸ Pausa' };
+  private backBtn: ButtonRect = { x: 20, y: 12, w: 110, h: 36, label: '' };
+  private restartBtn: ButtonRect = { x: 140, y: 12, w: 100, h: 36, label: '' };
+  private pauseBtn: ButtonRect = { x: 250, y: 12, w: 90, h: 36, label: '' };
   private paused = false;
 
   constructor(
@@ -402,20 +403,22 @@ export class RunScreen implements Screen {
     ctx.lineTo(CANVAS_W, TOOLBAR_H);
     ctx.stroke();
 
+    this.backBtn.label    = t('run.back');
+    this.restartBtn.label = t('run.restart');
+
     drawButton(ctx, this.backBtn, hitTest(this.backBtn, this.mx, this.my));
     drawButton(ctx, this.restartBtn, hitTest(this.restartBtn, this.mx, this.my));
 
     if (this.state === 'running') {
-      this.pauseBtn.label = this.paused ? '▶ Continuar' : '⏸ Pausa';
+      this.pauseBtn.label = this.paused ? t('run.resume') : t('run.pause');
       drawButton(ctx, this.pauseBtn, hitTest(this.pauseBtn, this.mx, this.my));
     }
 
     // Status info on the left
     const algoLabel = this.algorithm === 'astar' ? 'A*' : 'Dijkstra';
     const debugLabel = this.debugMode ? ' • Debug' : '';
-    const stepLabel = this.totalSteps > 0
-      ? ` • ${this.totalSteps} iterações`
-      : this.stepCount > 0 ? ` • ${this.stepCount} iterações` : '';
+    const iterCount = this.totalSteps > 0 ? this.totalSteps : this.stepCount;
+    const stepLabel = iterCount > 0 ? ` • ${iterCount} iterações` : '';
 
     ctx.fillStyle = COLOR_TEXT_DIM;
     ctx.font = '12px monospace';
@@ -433,7 +436,8 @@ export class RunScreen implements Screen {
   private drawHpPanel(ctx: CanvasRenderingContext2D): void {
     const panelW = 180;
     const panelH = 48;
-    const panelX = CANVAS_W - panelW - 12;
+    // Shifted 44px left to make room for the LangSwitcher button in the top-right corner
+    const panelX = CANVAS_W - panelW - 52;
     const panelY = 6;
 
     // Panel background
@@ -451,7 +455,7 @@ export class RunScreen implements Screen {
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('HITPOINTS', panelX + 10, panelY + 6);
+    ctx.fillText(t('run.hitpoints'), panelX + 10, panelY + 6);
 
     // HP value and max
     ctx.fillStyle = hpColor;
@@ -495,17 +499,17 @@ export class RunScreen implements Screen {
       ctx.font = 'bold 24px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Capturado pelo monstro! 👾', CANVAS_W / 2, CANVAS_H / 2 - 20);
+      ctx.fillText(t('run.caught.title'), CANVAS_W / 2, CANVAS_H / 2 - 20);
 
       ctx.fillStyle = COLOR_TEXT_DIM;
       ctx.font = '15px monospace';
       ctx.fillText(
-        'O personagem colidiu com um monstro.',
+        t('run.caught.msg'),
         CANVAS_W / 2,
         CANVAS_H / 2 + 18
       );
       ctx.fillText(
-        'Pressione ↺ Reiniciar ou ← Voltar para editar.',
+        t('run.caught.hint'),
         CANVAS_W / 2,
         CANVAS_H / 2 + 42
       );
@@ -527,17 +531,17 @@ export class RunScreen implements Screen {
       ctx.font = 'bold 24px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('Sem caminho disponível!', CANVAS_W / 2, CANVAS_H / 2 - 20);
+      ctx.fillText(t('run.notFound.title'), CANVAS_W / 2, CANVAS_H / 2 - 20);
 
       ctx.fillStyle = COLOR_TEXT_DIM;
       ctx.font = '15px monospace';
       ctx.fillText(
-        'Não há rota da origem até a saída.',
+        t('run.notFound.msg'),
         CANVAS_W / 2,
         CANVAS_H / 2 + 18
       );
       ctx.fillText(
-        'Pressione ↺ Reiniciar ou ← Voltar para editar.',
+        t('run.notFound.hint'),
         CANVAS_W / 2,
         CANVAS_H / 2 + 42
       );
@@ -563,22 +567,22 @@ export class RunScreen implements Screen {
         ctx.font = 'bold 26px monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(survived ? 'Saída encontrada! 🎉' : 'Sem HP suficiente! 💀', CANVAS_W / 2, CANVAS_H / 2 - 32);
+        ctx.fillText(survived ? t('run.found.survived') : t('run.found.dead'), CANVAS_W / 2, CANVAS_H / 2 - 32);
 
         ctx.fillStyle = COLOR_TEXT_DIM;
         ctx.font = '13px monospace';
         ctx.fillText(
-          `Caminho: ${path.length - 1} passos • ${this.totalSteps} iterações`,
+          t('run.found.steps', { steps: path.length - 1, iters: this.totalSteps }),
           CANVAS_W / 2,
           CANVAS_H / 2 - 2
         );
         ctx.fillText(
-          `Monstros no caminho: ${hpLost} • HP após colisões: ${this.currentHp} / ${this.maxHp}`,
+          t('run.found.hp', { lost: this.currentStep.pathHpLost, hp: this.currentHp, max: this.maxHp }),
           CANVAS_W / 2,
           CANVAS_H / 2 + 18
         );
         ctx.fillText(
-          'Pressione ↺ Reiniciar ou ← Voltar',
+          t('run.found.hint'),
           CANVAS_W / 2,
           CANVAS_H / 2 + 52
         );

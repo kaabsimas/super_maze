@@ -2,6 +2,7 @@ import type { Screen } from './Screen';
 import type { AppController } from '../state/AppController';
 import { CANVAS_W, CANVAS_H, COLOR_BG, COLOR_TEXT, COLOR_ACCENT, COLOR_TEXT_DIM } from '../constants';
 import { drawButton, hitTest, type ButtonRect } from '../ui/button';
+import { t } from '../i18n/index';
 
 export class MainMenuScreen implements Screen {
   private ctx: CanvasRenderingContext2D;
@@ -11,8 +12,8 @@ export class MainMenuScreen implements Screen {
   private t = 0;
 
   private buttons: ButtonRect[] = [
-    { x: CANVAS_W / 2 - 120, y: 280, w: 240, h: 52, label: '▶  Novo Jogo' },
-    { x: CANVAS_W / 2 - 120, y: 350, w: 240, h: 52, label: '📁  Mapas Salvos' },
+    { x: CANVAS_W / 2 - 130, y: 280, w: 260, h: 52, label: '' },
+    { x: CANVAS_W / 2 - 130, y: 350, w: 260, h: 52, label: '' },
   ];
 
   constructor(ctx: CanvasRenderingContext2D, app: AppController) {
@@ -23,6 +24,10 @@ export class MainMenuScreen implements Screen {
   render(dt: number): void {
     this.t += dt;
     const { ctx } = this;
+
+    // Update labels each frame so language changes are reflected immediately
+    this.buttons[0]!.label = t('menu.newGame');
+    this.buttons[1]!.label = t('menu.savedMaps');
 
     // Background
     ctx.fillStyle = COLOR_BG;
@@ -46,7 +51,7 @@ export class MainMenuScreen implements Screen {
     ctx.font = '18px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Pathfinding Interativo', CANVAS_W / 2, 185);
+    ctx.fillText(t('menu.subtitle'), CANVAS_W / 2, 185);
 
     // Buttons
     for (const btn of this.buttons) {
@@ -57,7 +62,7 @@ export class MainMenuScreen implements Screen {
     ctx.fillStyle = COLOR_TEXT_DIM;
     ctx.font = '13px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('A* e Dijkstra • Debug Mode • Editor de Labirintos', CANVAS_W / 2, CANVAS_H - 24);
+    ctx.fillText(t('menu.footer'), CANVAS_W / 2, CANVAS_H - 24);
   }
 
   private drawBgPattern(): void {
